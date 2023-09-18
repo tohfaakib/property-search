@@ -234,4 +234,4 @@ def run_scheduled_task():
 scheduler = BackgroundScheduler()
 scheduler.start()
 # Schedule the task using a cron-like expression
-scheduler.add_job(run_scheduled_task, CronTrigger(day_of_week='tue', hour=0, minute=0))
+scheduler.add_job(run_scheduled_task, CronTrigger(day_of_week='mon', hour=0, minute=0))
