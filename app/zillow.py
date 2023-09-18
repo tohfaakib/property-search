@@ -7,6 +7,11 @@ import urllib.parse
 from datetime import datetime
 import sqlite3
 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -16,6 +21,51 @@ file_lock = Lock()
 headers = {
     'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
 }
+
+def send_email(subject, body, to_email, attachment_file):
+    # Email configuration
+    sender_email = 'avsender12@gmail.com'  # Replace with your Gmail address
+    sender_password = 'gwymmehkpmbjxyfs'  # Replace with your Gmail password or an app-specific password
+    smtp_server = 'smtp.gmail.com'
+    smtp_port = 587  # Port for TLS
+
+    # Create the email message
+    message = MIMEMultipart()
+    message['From'] = sender_email
+    message['To'] = to_email
+    message['Subject'] = subject
+
+    # Add the email body
+    message.attach(MIMEText(body, 'plain'))
+
+    # check if attachment file exists
+    if os.path.isfile(attachment_file):
+        # Attach the CSV file
+        with open(attachment_file, 'rb') as file:
+            attachment = MIMEApplication(file.read(), _subtype="csv")
+            attachment.add_header('Content-Disposition', 'attachment', filename=attachment_file)
+            message.attach(attachment)
+    else:
+        print("attachment file not found")
+        body += "\n\nattachment file not found. most likely there is no new data for this zip code"
+
+    try:
+        # Connect to the SMTP server
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+
+        # Login to your Gmail account
+        server.login(sender_email, sender_password)
+
+        # Send the email
+        server.sendmail(sender_email, to_email, message.as_string())
+
+        # Close the SMTP server connection
+        server.quit()
+
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"Email sending failed: {e}")
 
 
 def create_visited_urls_table(conn):
@@ -59,12 +109,10 @@ def get_region_sugesstion(zip_code):
 
 
 rand_str = ""
+filename = ""
 
 
 def save_to_csv(data, zip_code):
-    # create_file_name_with_datetime_and_zip_code
-    current_datetime = datetime.now().strftime("%Y%m%d")
-    filename = f"output/zillow_{zip_code}_{current_datetime}_{rand_str}.csv"
 
     fieldnames = [
         "street_address", "price", "rent_by_price", "estimated_rent",
@@ -219,7 +267,7 @@ def parse_data(zip_code, region_id, page=1, for_rent=True, is_all_homes=True, pr
         except KeyError:
             properties = []
 
-    conn = sqlite3.connect("visited_urls.db")
+    conn = sqlite3.connect("output/visited_urls.db")
     create_visited_urls_table(conn)
 
     visited_urls = load_visited_urls(conn)
@@ -325,11 +373,11 @@ def parse_data(zip_code, region_id, page=1, for_rent=True, is_all_homes=True, pr
             "page": page,
         }
 
-        print(output_data)
+        # print(output_data)
 
         save_to_csv(output_data, zip_code)
 
-        print("=====================================")
+        # print("=====================================")
 
         # break
 
@@ -354,38 +402,43 @@ def start_parse(zipcode, for_rent, is_all_homes,
                 list_price_active, is_townhouse,
                 is_multi_family, is_condo, is_lot_land,
                 is_apartment, is_manufactured,
-                is_apartment_or_condo, max_hoa, beds, baths):
+                is_apartment_or_condo, max_hoa, beds, baths, email):
 
     with file_lock:
-        global rand_str
+        global rand_str, filename
         # print all params
-        print("zipcode:", zipcode)
-        print("for_rent:", for_rent)
-        print("is_all_homes:", is_all_homes)
-        print("price_min:", price_min)
-        print("price_max:", price_max)
-        print("monthly_payment_min:", monthly_payment_min)
-        print("monthly_payment_max:", monthly_payment_max)
-        print("monthly_cost_payment_min:", monthly_cost_payment_min)
-        print("monthly_cost_payment_max:", monthly_cost_payment_max)
-        print("is_coming_soon:", is_coming_soon)
-        print("is_auction:", is_auction)
-        print("is_new_construction:", is_new_construction)
-        print("list_price_active:", list_price_active)
-        print("is_townhouse:", is_townhouse)
-        print("is_multi_family:", is_multi_family)
-        print("is_condo:", is_condo)
-        print("is_lot_land:", is_lot_land)
-        print("is_apartment:", is_apartment)
-        print("is_manufactured:", is_manufactured)
-        print("is_apartment_or_condo:", is_apartment_or_condo)
-        print("max_hoa:", max_hoa)
-        print("beds:", beds)
-        print("baths:", baths)
+        print("Start scraping for zipcode:", zipcode)
+        # print("zipcode:", zipcode)
+        # print("for_rent:", for_rent)
+        # print("is_all_homes:", is_all_homes)
+        # print("price_min:", price_min)
+        # print("price_max:", price_max)
+        # print("monthly_payment_min:", monthly_payment_min)
+        # print("monthly_payment_max:", monthly_payment_max)
+        # print("monthly_cost_payment_min:", monthly_cost_payment_min)
+        # print("monthly_cost_payment_max:", monthly_cost_payment_max)
+        # print("is_coming_soon:", is_coming_soon)
+        # print("is_auction:", is_auction)
+        # print("is_new_construction:", is_new_construction)
+        # print("list_price_active:", list_price_active)
+        # print("is_townhouse:", is_townhouse)
+        # print("is_multi_family:", is_multi_family)
+        # print("is_condo:", is_condo)
+        # print("is_lot_land:", is_lot_land)
+        # print("is_apartment:", is_apartment)
+        # print("is_manufactured:", is_manufactured)
+        # print("is_apartment_or_condo:", is_apartment_or_condo)
+        # print("max_hoa:", max_hoa)
+        # print("beds:", beds)
+        # print("baths:", baths)
 
 
         # generate random string
         rand_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+        # create_file_name_with_datetime_and_zip_code
+        current_datetime = datetime.now().strftime("%Y%m%d")
+        filename = f"output/zillow_{zipcode}_{current_datetime}_{rand_str}.csv"
 
         regionid = str(get_region_sugesstion(zipcode))
 
@@ -401,6 +454,10 @@ def start_parse(zipcode, for_rent, is_all_homes,
                        is_multi_family=is_multi_family, is_condo=is_condo, is_lot_land=is_lot_land,
                        is_apartment=is_apartment, is_manufactured=is_manufactured,
                        is_apartment_or_condo=is_apartment_or_condo, max_hoa=max_hoa, beds=beds, baths=baths)
+
+        # send email
+        send_email(f"zillow_{zipcode}_{current_datetime}_{rand_str} data", f"Got data for zillow_{zipcode}_{current_datetime}_{rand_str}", email, filename)
+        print("Scraping finished successfully for zipcode:", zipcode)
 
 # if __name__ == "__main__":
 #     zipcode = '84003'  # input("Enter zipcode: ")
