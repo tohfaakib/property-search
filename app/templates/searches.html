@@ -25,8 +25,10 @@
             <thead>
                 <tr>
                     <th scope="col">Email</th>
-<!--                    <th scope="col">Search ID</th>-->
                     <th scope="col">Zipcode</th>
+                    <th scope="col">Run Every N Weeks</th>
+                    <th scope="col">Active For N Months</th>
+                    <th scope="col">Last Run Week</th>
                     <th scope="col">For Rent</th>
                     <th scope="col">Is All Homes</th>
                     <th scope="col">Price Min</th>
@@ -57,8 +59,10 @@
                 {% for search in searches %}
                 <tr>
                     <td>{{ search.email }}</td>
-<!--                    <td>{{ search.search_id }}</td>-->
                     <td>{{ search.zipcode }}</td>
+                    <td>{{ search.run_every_weeks }}</td>
+                    <td>{{ search.active_months }}</td>
+                    <td>{{ search.last_run_week }}</td>
                     <td>{{ search.for_rent }}</td>
                     <td>{{ search.is_all_homes }}</td>
                     <td>{{ search.price_min }}</td>

@@ -42,6 +42,9 @@ class SearchData(BaseModel):
     max_hoa: Optional[int]
     beds: Optional[int]
     baths: Optional[float]
+    run_every_weeks: int
+    active_months: int
+    created_at: datetime = datetime.now()
 
 
 password = urllib.parse.quote_plus('@ddrr355v3rify')
@@ -74,6 +77,7 @@ def read_root(request: Request):
 @app.get("/files/", response_class=HTMLResponse)
 async def list_files(request: Request):
     files = [str(file.name) for file in output_dir.glob("*.csv")]
+    # files = [str(file.name) for file in output_dir.glob("*")]
     return templates.TemplateResponse("files.html", {"request": request, "files": files})
 
 
@@ -100,6 +104,7 @@ async def delete_file(file_name: str):
 async def show_searches(request: Request):
     # Retrieve saved search data from MongoDB
     searches = list(search_collection.find({}))
+    searches.reverse()
 
     # Render the HTML template with the search data
     return templates.TemplateResponse("searches.html", {"request": request, "searches": searches})
@@ -129,7 +134,9 @@ async def run_script(request: Request, background_tasks: BackgroundTasks, zipcod
                      is_condo: bool = Form(False), is_lot_land: bool = Form(False),
                      is_apartment: bool = Form(False), is_manufactured: bool = Form(False),
                      is_apartment_or_condo: bool = Form(False), max_hoa: Optional[int] = Form(None),
-                     beds: Optional[int] = Form(None), baths: Optional[float] = Form(None), email: str = Form(...)):
+                     beds: Optional[int] = Form(None), baths: Optional[float] = Form(None),
+                     run_every_weeks: int = Form(...), active_months: int = Form(...),
+                     email: str = Form(...)):
     # Generate a unique search_id (you can use ObjectId or UUID)
     search_id = str(ObjectId())  # Generate a unique ObjectId as search_id
 
@@ -159,7 +166,9 @@ async def run_script(request: Request, background_tasks: BackgroundTasks, zipcod
         is_apartment_or_condo=is_apartment_or_condo,
         max_hoa=max_hoa,
         beds=beds,
-        baths=baths
+        baths=baths,
+        run_every_weeks=run_every_weeks,
+        active_months=active_months,
     )
 
     # Convert SearchData instance to a dictionary
@@ -206,29 +215,42 @@ def run_scheduled_task():
     searches = list(search_collection.find({}))
 
     for search in searches:
-
         try:
-            crawler_module = import_module("zillow")
-            start_parse = crawler_module.start_parse
-        except (ImportError, AttributeError) as e:
-            logging.error(f"Failed to import zillow.start_parse: {e}")
-            raise HTTPException(status_code=500, detail="Failed to import crawler")
+            weeks_since_creation = (datetime.now() - search["created_at"]).days // 7
 
-        # Call start_parse with the search data
-        start_parse(
-            search["zipcode"], search["for_rent"], search["is_all_homes"],
-            search["price_min"], search["price_max"], search["monthly_payment_min"],
-            search["monthly_payment_max"], search["monthly_cost_payment_min"],
-            search["monthly_cost_payment_max"], search["is_coming_soon"],
-            search["is_auction"], search["is_new_construction"],
-            search["list_price_active"], search["is_townhouse"],
-            search["is_multi_family"], search["is_condo"], search["is_lot_land"],
-            search["is_apartment"], search["is_manufactured"],
-            search["is_apartment_or_condo"], search["max_hoa"], search["beds"], search["baths"], search["email"]
-        )
+            if search["run_every_weeks"] <= 0:
+                continue
 
-        # Mark the search as "run for the specific week"
-        search_collection.update_one({"_id": search["_id"]}, {"$set": {"last_run_week": current_week}})
+            # Check if it's time to run the task based on run_every_weeks
+            if weeks_since_creation % search["run_every_weeks"] == 0:
+                # Check if the task is still active based on active_months
+                if (datetime.now() - search["created_at"]).days <= search["active_months"] * 30:
+                    try:
+                        crawler_module = import_module("zillow")
+                        start_parse = crawler_module.start_parse
+                    except (ImportError, AttributeError) as e:
+                        logging.error(f"Failed to import zillow.start_parse: {e}")
+                        continue
+
+                    # Call start_parse with the search data
+                    start_parse(
+                        search["zipcode"], search["for_rent"], search["is_all_homes"],
+                        search["price_min"], search["price_max"], search["monthly_payment_min"],
+                        search["monthly_payment_max"], search["monthly_cost_payment_min"],
+                        search["monthly_cost_payment_max"], search["is_coming_soon"],
+                        search["is_auction"], search["is_new_construction"],
+                        search["list_price_active"], search["is_townhouse"],
+                        search["is_multi_family"], search["is_condo"], search["is_lot_land"],
+                        search["is_apartment"], search["is_manufactured"],
+                        search["is_apartment_or_condo"], search["max_hoa"], search["beds"], search["baths"], search["email"]
+                    )
+
+                    # Mark the search as "run for the specific week"
+                    search_collection.update_one({"_id": search["_id"]}, {"$set": {"last_run_week": current_week}})
+
+        except Exception as e:
+            logging.error(f"Failed to run scheduled task for search_id: {search['search_id']}: {e}")
+            continue
 
 
 scheduler = BackgroundScheduler()

@@ -36,10 +36,10 @@ def send_email(subject, body, to_email, attachment_file):
     message['Subject'] = subject
 
     # Add the email body
-    message.attach(MIMEText(body, 'plain'))
 
     # check if attachment file exists
     if os.path.isfile(attachment_file):
+        message.attach(MIMEText(body, 'plain'))
         # Attach the CSV file
         with open(attachment_file, 'rb') as file:
             attachment = MIMEApplication(file.read(), _subtype="csv")
@@ -47,7 +47,10 @@ def send_email(subject, body, to_email, attachment_file):
             message.attach(attachment)
     else:
         print("attachment file not found")
-        body += "\n\nattachment file not found. most likely there is no new data for this zip code"
+        body += "\n\nAttachment file not found. Most likely there is no new data for this zip code."
+        message.attach(MIMEText(body, 'plain'))
+
+    print(body)
 
     try:
         # Connect to the SMTP server
@@ -373,7 +376,7 @@ def parse_data(zip_code, region_id, page=1, for_rent=True, is_all_homes=True, pr
             "page": page,
         }
 
-        # print(output_data)
+        print(output_data)
 
         save_to_csv(output_data, zip_code)
 
