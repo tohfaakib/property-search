@@ -103,6 +103,8 @@ def get_region_sugesstion(zip_code):
     }
 
     response = requests.get('https://www.zillowstatic.com/autocomplete/v3/suggestions', params=params, headers=headers)
+    print("region suggestion response:")
+    print(response.status_code)
 
     results = response.json()["results"]
 
@@ -138,6 +140,9 @@ def load_detail_page(url):
     print(url)
     response = requests.get(url, headers=headers)
 
+    print("detail page response:")
+    print(response.status_code)
+
     soup = BeautifulSoup(response.text, 'html.parser')
     emc_block = soup.find('div', {'class': 'klZWLi'})
 
@@ -165,7 +170,6 @@ def create_map_bounds(zip_code, region_id):
 
     print("map bounds response:")
     print(response.status_code)
-    print(response.text)
 
     map_bounds = response.json()["regionState"]["regionBounds"]
     return map_bounds
@@ -256,6 +260,9 @@ def parse_data(zip_code, region_id, page=1, for_rent=True, is_all_homes=True, pr
         f'https://www.zillow.com/search/GetSearchPageState.htm?searchQueryState={urllib.parse.quote(str(params))}&wants={urllib.parse.quote(str(wants))}&requestId=38',
         headers=headers,
     )
+
+    print("parse data response:")
+    print(response.status_code)
 
     data = response.json()
 
