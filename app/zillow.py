@@ -163,6 +163,10 @@ def create_map_bounds(zip_code, region_id):
         headers=headers,
     )
 
+    print("map bounds response:")
+    print(response.status_code)
+    print(response.text)
+
     map_bounds = response.json()["regionState"]["regionBounds"]
     return map_bounds
 
